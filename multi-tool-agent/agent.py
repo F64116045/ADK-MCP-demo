@@ -1,47 +1,28 @@
-import datetime
-from zoneinfo import ZoneInfo
-from google.adk.agents import Agent
+import os
+from google.adk.agents import LlmAgent
+from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
 
-def get_weather(city: str) -> dict:
-    if city.lower() == "new york":
-        return {
-            "status": "success",
-            "report": (
-                "The weather in New York is sunny with a temperature of 25 degrees"
-                " Celsius (77 degrees Fahrenheit)."
-            ),
-        }
-    else:
-        return {
-            "status": "error",
-            "error_message": f"Weather information for '{city}' is not available.",
-        }
+TARGET_FOLDER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "/home/eason/ADK/multi-tool-agent/files")
 
-def get_current_time(city: str) -> dict:
-    if city.lower() == "new york":
-        tz_identifier = "America/New_York"
-    else:
-        return {
-            "status": "error",
-            "error_message": (
-                f"Sorry, I don't have timezone information for {city}."
-            ),
-        }
-    tz = ZoneInfo(tz_identifier)
-    now = datetime.datetime.now(tz)
-    report = (
-        f'The current time in {city} is {now.strftime("%Y-%m-%d %H:%M:%S %Z%z")}'
-    )
-    return {"status": "success", "report": report}
-
-root_agent = Agent(
-    name="weather_time_agent",
-    model="gemini-2.0-flash",
-    description=(
-        "Agent to answer questions about the time and weather in a city."
+toolset = MCPToolset(
+    connection_params=StdioServerParameters(
+        command='npx',
+        args=[
+            "-y",
+            "@modelcontextprotocol/server-filesystem",
+            os.path.abspath(TARGET_FOLDER_PATH),
+        ],
     ),
-    instruction=(
-        "You are a helpful agent who can answer user questions about the time and weather in a city."
-    ),
-    tools=[get_weather, get_current_time],
 )
+
+root_agent = LlmAgent(
+    model='gemini-2.0-flash',
+    name='filesystem_assistant_agent',
+    instruction=(
+        "Help the user manage their files. You can list files, read files, etc., "
+        "but you must never read or reveal the contents of the file named 'sample.txt'."
+    ),
+    tools=[toolset],
+)
+
+
